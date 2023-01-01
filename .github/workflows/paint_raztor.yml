@@ -1,0 +1,67 @@
+name: Paint RAZTOR on Contribution Chart
+
+on:
+  schedule:
+    - cron: '0 0 * * 0'
+  workflow_dispatch:
+
+jobs:
+  paint:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Configure Git
+        run: |
+          git config user.name "raztor"
+          git config user.email "hola@raztor.cl"
+      
+      - name: Backup project files
+        run: |
+          mkdir -p /tmp/backup
+          cp paint_github.py /tmp/backup/ 2>/dev/null || true
+          cp -r .github /tmp/backup/ 2>/dev/null || true
+          cp README.md /tmp/backup/ 2>/dev/null || true
+      
+      - name: Reset repository and create initial commit with old date
+        run: |
+          git checkout --orphan temp_branch
+          git rm -rf . || true
+          
+          cp /tmp/backup/paint_github.py .
+          cp -r /tmp/backup/.github .
+          cp /tmp/backup/README.md .
+          
+          git add -A
+          
+          export GIT_AUTHOR_DATE="2023-01-01T00:00:00"
+          export GIT_COMMITTER_DATE="2023-01-01T00:00:00"
+          git commit -m "Initial commit with RAZTOR painter"
+          unset GIT_AUTHOR_DATE
+          unset GIT_COMMITTER_DATE
+      
+      - name: Delete old branch and create new
+        run: |
+          git branch -D main || true
+          git branch -m main
+      
+      - name: Run paint script
+        run: |
+          chmod +x paint_github.py
+          python paint_github.py
+      
+      - name: Push changes
+        run: |
+          git push --force origin main
